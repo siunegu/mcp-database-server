@@ -223,4 +223,18 @@ export class MysqlAdapter implements DbAdapter {
   getDescribeTableQuery(tableName: string): string {
     return `DESCRIBE \`${tableName}\``;
   }
+
+  /**
+   * Get database-specific query for sampling rows
+   */
+  getSampleRowsQuery(tableName: string, limit: number): string {
+    return `SELECT * FROM \`${tableName}\` LIMIT ${limit}`;
+  }
+
+  /**
+   * Get database-specific query for counting rows
+   */
+  getCountQuery(tableName: string): string {
+    return `SELECT COUNT(*) AS total FROM \`${tableName}\``;
+  }
 } 

@@ -48,6 +48,16 @@ export interface DbAdapter {
    * @param tableName Table name
    */
   getDescribeTableQuery(tableName: string): string;
+
+  /**
+   * Get database-specific query for sampling rows
+   */
+  getSampleRowsQuery?(tableName: string, limit: number): string;
+
+  /**
+   * Get database-specific query for counting rows
+   */
+  getCountQuery?(tableName: string): string;
 }
 
 // Import adapters using dynamic imports

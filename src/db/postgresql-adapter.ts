@@ -194,4 +194,18 @@ export class PostgresqlAdapter implements DbAdapter {
         c.ordinal_position
     `;
   }
+
+  /**
+   * Get database-specific query for sampling rows
+   */
+  getSampleRowsQuery(tableName: string, limit: number): string {
+    return `SELECT * FROM "${tableName}" LIMIT ${limit}`;
+  }
+
+  /**
+   * Get database-specific query for counting rows
+   */
+  getCountQuery(tableName: string): string {
+    return `SELECT COUNT(*) AS total FROM "${tableName}"`;
+  }
 } 

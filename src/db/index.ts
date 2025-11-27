@@ -102,4 +102,46 @@ export function getDescribeTableQuery(tableName: string): string {
     throw new Error("Database not initialized");
   }
   return dbAdapter.getDescribeTableQuery(tableName);
-} 
+}
+
+/**
+ * Get database-specific query for sampling rows
+ */
+export function getSampleRowsQuery(tableName: string, limit: number): string {
+  if (!dbAdapter) {
+    throw new Error("Database not initialized");
+  }
+  if (typeof (dbAdapter as any).getSampleRowsQuery === 'function') {
+    return (dbAdapter as any).getSampleRowsQuery(tableName, limit);
+  }
+  const type = dbAdapter.getMetadata().type?.toLowerCase();
+  switch (type) {
+    case 'sqlserver':
+      return `SELECT TOP (${limit}) * FROM [${tableName}]`;
+    case 'mysql':
+      return `SELECT * FROM \`${tableName}\` LIMIT ${limit}`;
+    default:
+      return `SELECT * FROM "${tableName}" LIMIT ${limit}`;
+  }
+}
+
+/**
+ * Get database-specific query for counting rows
+ */
+export function getCountQuery(tableName: string): string {
+  if (!dbAdapter) {
+    throw new Error("Database not initialized");
+  }
+  if (typeof (dbAdapter as any).getCountQuery === 'function') {
+    return (dbAdapter as any).getCountQuery(tableName);
+  }
+  const type = dbAdapter.getMetadata().type?.toLowerCase();
+  switch (type) {
+    case 'sqlserver':
+      return `SELECT COUNT(*) AS total FROM [${tableName}]`;
+    case 'mysql':
+      return `SELECT COUNT(*) AS total FROM \`${tableName}\``;
+    default:
+      return `SELECT COUNT(*) AS total FROM "${tableName}"`;
+  }
+}

@@ -203,6 +203,20 @@ export class SqlServerAdapter implements DbAdapter {
   }
 
   /**
+   * Get database-specific query for sampling rows
+   */
+  getSampleRowsQuery(tableName: string, limit: number): string {
+    return `SELECT TOP (${limit}) * FROM [${tableName}]`;
+  }
+
+  /**
+   * Get database-specific query for counting rows
+   */
+  getCountQuery(tableName: string): string {
+    return `SELECT COUNT(*) AS total FROM [${tableName}]`;
+  }
+
+  /**
    * Helper to get the number of affected rows based on query type
    */
   private getAffectedRows(query: string, lastID: number): number {

@@ -1,4 +1,4 @@
-import { dbAll, dbRun, dbExec, getListTablesQuery } from '../db/index.js';
+import { dbAll, dbRun, dbExec, getListTablesQuery, getSampleRowsQuery, getCountQuery } from '../db/index.js';
 import { formatErrorResponse, formatSuccessResponse, convertToCSV } from '../utils/formatUtils.js';
 
 const DEFAULT_SAMPLE_LIMIT = 50;
@@ -39,7 +39,8 @@ export async function readQuery(query: string) {
 export async function sampleRows(tableName: string, limit?: number) {
   const safeLimit = limit && limit > 0 ? Math.min(limit, 200) : DEFAULT_SAMPLE_LIMIT;
   await ensureTableExists(tableName);
-  const rows = await dbAll(`SELECT * FROM \`${tableName}\` LIMIT ${safeLimit}`);
+  const query = getSampleRowsQuery(tableName, safeLimit);
+  const rows = await dbAll(query);
   return formatSuccessResponse(rows);
 }
 
@@ -48,7 +49,8 @@ export async function sampleRows(tableName: string, limit?: number) {
  */
 export async function countTable(tableName: string) {
   await ensureTableExists(tableName);
-  const rows = await dbAll(`SELECT COUNT(*) AS total FROM \`${tableName}\``);
+  const query = getCountQuery(tableName);
+  const rows = await dbAll(query);
   return formatSuccessResponse(rows[0]);
 }
 
