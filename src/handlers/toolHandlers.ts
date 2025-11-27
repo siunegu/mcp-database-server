@@ -1,7 +1,7 @@
 import { formatErrorResponse } from '../utils/formatUtils.js';
 
 // Import all tool implementations
-import { readQuery, writeQuery, exportQuery } from '../tools/queryTools.js';
+import { readQuery, writeQuery, exportQuery, sampleRows, countTable } from '../tools/queryTools.js';
 import { createTable, alterTable, dropTable, listTables, describeTable } from '../tools/schemaTools.js';
 import { appendInsight, listInsights } from '../tools/insightTools.js';
 
@@ -89,6 +89,29 @@ export function handleListTools() {
         },
       },
       {
+        name: "sample_rows",
+        description: "Fetch a limited sample of rows from a table",
+        inputSchema: {
+          type: "object",
+          properties: {
+            table_name: { type: "string" },
+            limit: { type: "number" }
+          },
+          required: ["table_name"],
+        },
+      },
+      {
+        name: "count_table",
+        description: "Get row count for a table",
+        inputSchema: {
+          type: "object",
+          properties: {
+            table_name: { type: "string" }
+          },
+          required: ["table_name"],
+        },
+      },
+      {
         name: "describe_table",
         description: "View schema information for a specific table",
         inputSchema: {
@@ -148,10 +171,16 @@ export async function handleToolCall(name: string, args: any) {
       
       case "export_query":
         return await exportQuery(args.query, args.format);
-      
+
       case "list_tables":
         return await listTables();
-      
+
+      case "sample_rows":
+        return await sampleRows(args.table_name, args.limit);
+
+      case "count_table":
+        return await countTable(args.table_name);
+
       case "describe_table":
         return await describeTable(args.table_name);
       

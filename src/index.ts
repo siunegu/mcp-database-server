@@ -40,6 +40,12 @@ const server = new Server(
 
 // Parse command line arguments
 const args = process.argv.slice(2);
+
+// Allow env-based default for db type to reduce flag typing (e.g. MCP_DB_TYPE=mysql)
+const envDbType = process.env.MCP_DB_TYPE?.toLowerCase();
+if (args.length === 0 && envDbType === 'mysql') {
+  args.push('--mysql');
+}
 if (args.length === 0) {
   logger.error("Please provide database connection information");
   logger.error("Usage for SQLite: node index.js <database_file_path>");
@@ -127,15 +133,16 @@ else if (args.includes('--postgresql') || args.includes('--postgres')) {
 else if (args.includes('--mysql')) {
   dbType = 'mysql';
   connectionInfo = {
-    host: '',
-    database: '',
-    user: undefined,
-    password: undefined,
-    port: undefined,
-    ssl: undefined,
-    connectionTimeout: undefined,
+    host: process.env.MCP_MYSQL_HOST || '',
+    database: process.env.MCP_MYSQL_DATABASE || process.env.MCP_MYSQL_DB || '',
+    user: process.env.MCP_MYSQL_USER,
+    password: process.env.MCP_MYSQL_PASSWORD,
+    port: process.env.MCP_MYSQL_PORT ? parseInt(process.env.MCP_MYSQL_PORT, 10) : undefined,
+    ssl: process.env.MCP_MYSQL_SSL ? process.env.MCP_MYSQL_SSL === 'true' ? true : process.env.MCP_MYSQL_SSL : undefined,
+    connectionTimeout: process.env.MCP_MYSQL_CONNECTION_TIMEOUT ? parseInt(process.env.MCP_MYSQL_CONNECTION_TIMEOUT, 10) : undefined,
+    connectionLimit: process.env.MCP_MYSQL_CONNECTION_LIMIT ? parseInt(process.env.MCP_MYSQL_CONNECTION_LIMIT, 10) : undefined,
     awsIamAuth: false,
-    awsRegion: undefined
+    awsRegion: process.env.MCP_MYSQL_AWS_REGION
   };
   // Parse MySQL connection parameters
   for (let i = 0; i < args.length; i++) {
@@ -149,6 +156,8 @@ else if (args.includes('--mysql')) {
       connectionInfo.password = args[i + 1];
     } else if (args[i] === '--port' && i + 1 < args.length) {
       connectionInfo.port = parseInt(args[i + 1], 10);
+    } else if (args[i] === '--connection-limit' && i + 1 < args.length) {
+      connectionInfo.connectionLimit = parseInt(args[i + 1], 10);
     } else if (args[i] === '--ssl' && i + 1 < args.length) {
       const sslVal = args[i + 1];
       if (sslVal === 'true') connectionInfo.ssl = true;
@@ -164,7 +173,7 @@ else if (args.includes('--mysql')) {
   }
   // Validate MySQL connection info
   if (!connectionInfo.host || !connectionInfo.database) {
-    logger.error("Error: MySQL requires --host and --database parameters");
+    logger.error("Error: MySQL requires --host and --database parameters (or env MCP_MYSQL_HOST / MCP_MYSQL_DATABASE)");
     process.exit(1);
   }
   

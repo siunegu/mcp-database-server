@@ -1,5 +1,19 @@
-import { dbAll, dbRun, dbExec } from '../db/index.js';
+import { dbAll, dbRun, dbExec, getListTablesQuery } from '../db/index.js';
 import { formatErrorResponse, formatSuccessResponse, convertToCSV } from '../utils/formatUtils.js';
+
+const DEFAULT_SAMPLE_LIMIT = 50;
+
+async function ensureTableExists(tableName: string) {
+  if (!tableName || !/^[A-Za-z0-9_]+$/.test(tableName)) {
+    throw new Error("Invalid table name");
+  }
+
+  const tables = await dbAll(getListTablesQuery());
+  const names = tables.map((t) => t.name || t.TABLE_NAME || t.table_name);
+  if (!names.includes(tableName)) {
+    throw new Error(`Table '${tableName}' does not exist`);
+  }
+}
 
 /**
  * Execute a read-only SQL query
@@ -17,6 +31,25 @@ export async function readQuery(query: string) {
   } catch (error: any) {
     throw new Error(`SQL Error: ${error.message}`);
   }
+}
+
+/**
+ * Get a limited set of rows from a table with safety checks
+ */
+export async function sampleRows(tableName: string, limit?: number) {
+  const safeLimit = limit && limit > 0 ? Math.min(limit, 200) : DEFAULT_SAMPLE_LIMIT;
+  await ensureTableExists(tableName);
+  const rows = await dbAll(`SELECT * FROM \`${tableName}\` LIMIT ${safeLimit}`);
+  return formatSuccessResponse(rows);
+}
+
+/**
+ * Get a count of rows in a table
+ */
+export async function countTable(tableName: string) {
+  await ensureTableExists(tableName);
+  const rows = await dbAll(`SELECT COUNT(*) AS total FROM \`${tableName}\``);
+  return formatSuccessResponse(rows[0]);
 }
 
 /**

@@ -6,8 +6,8 @@ import { Signer } from "@aws-sdk/rds-signer";
  * MySQL database adapter implementation
  */
 export class MysqlAdapter implements DbAdapter {
-  private connection: mysql.Connection | null = null;
-  private config: mysql.ConnectionOptions;
+  private pool: mysql.Pool | null = null;
+  private config: mysql.PoolOptions;
   private host: string;
   private database: string;
   private awsIamAuth: boolean;
@@ -21,6 +21,7 @@ export class MysqlAdapter implements DbAdapter {
     port?: number;
     ssl?: boolean | object;
     connectionTimeout?: number;
+    connectionLimit?: number;
     awsIamAuth?: boolean;
     awsRegion?: string;
   }) {
@@ -35,7 +36,12 @@ export class MysqlAdapter implements DbAdapter {
       user: connectionInfo.user,
       password: connectionInfo.password,
       connectTimeout: connectionInfo.connectionTimeout || 30000,
-      multipleStatements: true,
+      waitForConnections: true,
+      connectionLimit: connectionInfo.connectionLimit || 10,
+      queueLimit: 0,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 10000,
+      multipleStatements: false,
     };
     if (typeof connectionInfo.ssl === 'object' || typeof connectionInfo.ssl === 'string') {
       this.config.ssl = connectionInfo.ssl;
@@ -74,7 +80,7 @@ export class MysqlAdapter implements DbAdapter {
     }
     
     try {
-      console.info(`[INFO] Generating AWS auth token for region: ${this.awsRegion}, host: ${this.host}, user: ${this.config.user}`);
+      console.error(`[INFO] Generating AWS auth token for region: ${this.awsRegion}, host: ${this.host}, user: ${this.config.user}`);
       
       const signer = new Signer({
         region: this.awsRegion,
@@ -84,7 +90,7 @@ export class MysqlAdapter implements DbAdapter {
       });
       
       const token = await signer.getAuthToken();
-      console.info(`[INFO] AWS auth token generated successfully`);
+      console.error(`[INFO] AWS auth token generated successfully`);
       return token;
     } catch (err) {
       console.error(`[ERROR] Failed to generate AWS auth token: ${(err as Error).message}`);
@@ -97,11 +103,11 @@ export class MysqlAdapter implements DbAdapter {
    */
   async init(): Promise<void> {
     try {
-      console.info(`[INFO] Connecting to MySQL: ${this.host}, Database: ${this.database}`);
-      
+      console.error(`[INFO] Connecting to MySQL: ${this.host}, Database: ${this.database}`);
+
       // Handle AWS IAM authentication
       if (this.awsIamAuth) {
-        console.info(`[INFO] Using AWS IAM authentication for user: ${this.config.user}`);
+        console.error(`[INFO] Using AWS IAM authentication for user: ${this.config.user}`);
         
         try {
           const authToken = await this.generateAwsAuthToken();
@@ -112,16 +118,20 @@ export class MysqlAdapter implements DbAdapter {
             password: authToken
           };
           
-          this.connection = await mysql.createConnection(awsConfig);
+          this.pool = mysql.createPool(awsConfig);
+          const conn = await this.pool.getConnection();
+          conn.release();
         } catch (err) {
           console.error(`[ERROR] AWS IAM authentication failed: ${(err as Error).message}`);
           throw new Error(`AWS IAM authentication failed: ${(err as Error).message}`);
         }
       } else {
-        this.connection = await mysql.createConnection(this.config);
+        this.pool = mysql.createPool(this.config);
+        const conn = await this.pool.getConnection();
+        conn.release();
       }
-      
-      console.info(`[INFO] MySQL connection established successfully`);
+
+      console.error(`[INFO] MySQL connection established successfully`);
     } catch (err) {
       console.error(`[ERROR] MySQL connection error: ${(err as Error).message}`);
       if (this.awsIamAuth) {
@@ -136,11 +146,11 @@ export class MysqlAdapter implements DbAdapter {
    * Execute a SQL query and get all results
    */
   async all(query: string, params: any[] = []): Promise<any[]> {
-    if (!this.connection) {
+    if (!this.pool) {
       throw new Error("Database not initialized");
     }
     try {
-      const [rows] = await this.connection.execute(query, params);
+      const [rows] = await this.pool.execute(query, params);
       return Array.isArray(rows) ? rows : [];
     } catch (err) {
       throw new Error(`MySQL query error: ${(err as Error).message}`);
@@ -151,11 +161,11 @@ export class MysqlAdapter implements DbAdapter {
    * Execute a SQL query that modifies data
    */
   async run(query: string, params: any[] = []): Promise<{ changes: number, lastID: number }> {
-    if (!this.connection) {
+    if (!this.pool) {
       throw new Error("Database not initialized");
     }
     try {
-      const [result]: any = await this.connection.execute(query, params);
+      const [result]: any = await this.pool.execute(query, params);
       const changes = result.affectedRows || 0;
       const lastID = result.insertId || 0;
       return { changes, lastID };
@@ -168,11 +178,11 @@ export class MysqlAdapter implements DbAdapter {
    * Execute multiple SQL statements
    */
   async exec(query: string): Promise<void> {
-    if (!this.connection) {
+    if (!this.pool) {
       throw new Error("Database not initialized");
     }
     try {
-      await this.connection.query(query);
+      await this.pool.query(query);
     } catch (err) {
       throw new Error(`MySQL batch error: ${(err as Error).message}`);
     }
@@ -182,9 +192,9 @@ export class MysqlAdapter implements DbAdapter {
    * Close the database connection
    */
   async close(): Promise<void> {
-    if (this.connection) {
-      await this.connection.end();
-      this.connection = null;
+    if (this.pool) {
+      await this.pool.end();
+      this.pool = null;
     }
   }
 

@@ -14,11 +14,13 @@
         "dist"
     ],
     "scripts": {
-        "build": "tsc && shx chmod +x dist/src/index.js",
-        "prepare": "npm run build",
-        "watch": "tsc --watch",
-        "start": "node dist/src/index.js",
-        "dev": "tsc && node dist/src/index.js",
+    "build": "tsc && shx chmod +x dist/src/index.js",
+    "prepare": "npm run build",
+    "watch": "tsc --watch",
+    "start": "node dist/src/index.js",
+    "mysql": "node dist/src/index.js --mysql",
+    "mcpdb": "node scripts/mcpdb.mjs",
+    "dev": "tsc && node dist/src/index.js",
         "example": "node examples/example.js",
         "clean": "rimraf dist"
     },
